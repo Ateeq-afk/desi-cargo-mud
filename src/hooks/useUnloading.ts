@@ -18,15 +18,15 @@ export function useUnloading(organizationId: string | null) {
         .select(`
           *,
           vehicle:vehicles(*),
-          from_station_details:branches!from_station(*),
-          to_station_details:branches!to_station(*),
-          loading_records(
+          from_station_details:branches!ogpl_from_station_fkey(*),
+          to_station_details:branches!ogpl_to_station_fkey(*),
+          loading_records!loading_records_ogpl_id_fkey(
             *,
-            booking:bookings(
+            booking:bookings!loading_records_booking_id_fkey(
               *,
-              sender:customers!sender_id(*),
-              receiver:customers!receiver_id(*),
-              article:articles(*)
+              sender:customers!bookings_sender_id_fkey(*),
+              receiver:customers!bookings_receiver_id_fkey(*),
+              article:articles!bookings_article_id_fkey(*)
             )
           )
         `)
@@ -140,15 +140,15 @@ export function useUnloading(organizationId: string | null) {
           ogpl(
             *,
             vehicle:vehicles(*),
-            from_station_details:branches!from_station(*),
-            to_station_details:branches!to_station(*),
-            loading_records(
+            from_station_details:branches!ogpl_from_station_fkey(*),
+            to_station_details:branches!ogpl_to_station_fkey(*),
+            loading_records!loading_records_ogpl_id_fkey(
               *,
-              booking:bookings(
+              booking:bookings!loading_records_booking_id_fkey(
                 *,
-                sender:customers!sender_id(*),
-                receiver:customers!receiver_id(*),
-                article:articles(*)
+                sender:customers!bookings_sender_id_fkey(*),
+                receiver:customers!bookings_receiver_id_fkey(*),
+                article:articles!bookings_article_id_fkey(*)
               )
             )
           )
