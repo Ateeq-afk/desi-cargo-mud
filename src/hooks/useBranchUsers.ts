@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import type { BranchUser } from '@/types';
 
@@ -7,24 +7,24 @@ export function useBranchUsers(branchId: string | null) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
-  useEffect(() => {
-    if (branchId) {
-      loadUsers();
+  const loadUsers = useCallback(async () => {
+    if (!branchId) {
+      setUsers([]);
+      setLoading(false);
+      return;
     }
-  }, [branchId]);
 
-  async function loadUsers() {
     try {
       setLoading(true);
       setError(null);
 
-      const { data, error } = await supabase
+      const { data, error: sbError } = await supabase
         .from('branch_users')
         .select('*')
         .eq('branch_id', branchId)
         .order('name');
 
-      if (error) throw error;
+      if (sbError) throw sbError;
       setUsers(data || []);
     } catch (err) {
       console.error('Failed to load branch users:', err);
@@ -32,17 +32,21 @@ export function useBranchUsers(branchId: string | null) {
     } finally {
       setLoading(false);
     }
-  }
+  }, [branchId]);
+
+  useEffect(() => {
+    loadUsers();
+  }, [loadUsers]);
 
   async function addUser(userData: Omit<BranchUser, 'id' | 'created_at' | 'updated_at'>) {
     try {
-      const { data, error } = await supabase
+      const { data, error: sbError } = await supabase
         .from('branch_users')
         .insert(userData)
         .select()
         .single();
 
-      if (error) throw error;
+      if (sbError) throw sbError;
       setUsers(prev => [...prev, data]);
       return data;
     } catch (err) {
@@ -53,14 +57,14 @@ export function useBranchUsers(branchId: string | null) {
 
   async function updateUser(id: string, updates: Partial<BranchUser>) {
     try {
-      const { data, error } = await supabase
+      const { data, error: sbError } = await supabase
         .from('branch_users')
         .update(updates)
         .eq('id', id)
         .select()
         .single();
 
-      if (error) throw error;
+      if (sbError) throw sbError;
       setUsers(prev => prev.map(user => user.id === id ? data : user));
       return data;
     } catch (err) {
@@ -71,12 +75,12 @@ export function useBranchUsers(branchId: string | null) {
 
   async function removeUser(id: string) {
     try {
-      const { error } = await supabase
+      const { error: sbError } = await supabase
         .from('branch_users')
         .delete()
         .eq('id', id);
 
-      if (error) throw error;
+      if (sbError) throw sbError;
       setUsers(prev => prev.filter(user => user.id !== id));
     } catch (err) {
       console.error('Failed to remove branch user:', err);

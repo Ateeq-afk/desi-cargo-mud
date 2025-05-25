@@ -5,14 +5,23 @@ export async function sendSMS(to: string, message: string) {
   try {
     console.log(`Sending SMS to ${to}: ${message}`);
     
-    // In a real implementation, you would:
-    // 1. Call your SMS gateway API
-    // 2. Store the SMS status in Supabase
+    // In a real implementation, you would call your SMS gateway API
+    // For now, we'll just log the message and store it in Supabase
     
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    const { data, error } = await supabase
+      .from('sms_logs')
+      .insert({
+        recipient: to,
+        message,
+        status: 'sent',
+        sent_at: new Date().toISOString()
+      })
+      .select()
+      .single();
     
-    return true;
+    if (error) throw error;
+    
+    return data;
   } catch (error) {
     console.error('SMS sending failed:', error);
     throw error;
@@ -37,7 +46,16 @@ export async function sendBookingSMS(booking: Booking) {
       `A shipment is on its way to you with LR number ${booking.lr_number}. Track at: ${window.location.origin}/track/${booking.lr_number}`
     );
 
-    // Log the SMS sending in the database (in a real implementation)
+    // Log the SMS sending in the database
+    await supabase
+      .from('notification_logs')
+      .insert({
+        booking_id: booking.id,
+        notification_type: 'booking_created',
+        recipients: [booking.sender.mobile, booking.receiver.mobile],
+        sent_at: new Date().toISOString()
+      });
+    
     console.log('SMS notifications sent successfully for booking:', booking.lr_number);
     
     return true;
@@ -74,6 +92,16 @@ export async function sendStatusUpdateSMS(booking: Booking) {
     // Send to receiver
     await sendSMS(booking.receiver.mobile, statusMessage);
 
+    // Log the SMS sending in the database
+    await supabase
+      .from('notification_logs')
+      .insert({
+        booking_id: booking.id,
+        notification_type: `status_${booking.status}`,
+        recipients: [booking.sender.mobile, booking.receiver.mobile],
+        sent_at: new Date().toISOString()
+      });
+
     console.log('Status update SMS sent successfully for booking:', booking.lr_number);
     
     return true;
@@ -98,6 +126,16 @@ export async function sendDeliveryReminderSMS(booking: Booking) {
     
     // Send to receiver
     await sendSMS(booking.receiver.mobile, message);
+
+    // Log the SMS sending in the database
+    await supabase
+      .from('notification_logs')
+      .insert({
+        booking_id: booking.id,
+        notification_type: 'delivery_reminder',
+        recipients: [booking.receiver.mobile],
+        sent_at: new Date().toISOString()
+      });
 
     console.log('Delivery reminder SMS sent successfully for booking:', booking.lr_number);
     

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { supabase } from '@/lib/supabaseClient';
 import type { Booking } from '@/types';
 
 export function useLR(branchId: string | null = null) {
@@ -9,20 +10,44 @@ export function useLR(branchId: string | null = null) {
     try {
       console.log('Generating LR number, branchId:', branchId);
       
-      // Generate a mock LR number with 4-digit system
+      // Get the branch code
+      let branchCode = 'DC'; // Default code for DesiCargo
+      
+      if (branchId) {
+        const { data: branch, error: branchError } = await supabase
+          .from('branches')
+          .select('code')
+          .eq('id', branchId)
+          .single();
+        
+        if (!branchError && branch) {
+          branchCode = branch.code.slice(0, 2).toUpperCase();
+        }
+      }
+      
+      // Get the current date
       const date = new Date();
       const year = date.getFullYear().toString().slice(-2); // Last 2 digits of year
       const month = (date.getMonth() + 1).toString().padStart(2, '0');
       
-      // Generate a random 4-digit sequence number
-      const sequence = Math.floor(1000 + Math.random() * 9000); // Random 4-digit number between 1000-9999
+      // Get the latest LR number for this branch and month
+      const { data: latestLR, error: lrError } = await supabase
+        .from('bookings')
+        .select('lr_number')
+        .ilike('lr_number', `${branchCode}${year}${month}-%`)
+        .order('lr_number', { ascending: false })
+        .limit(1);
       
-      // Get branch code (first 2 characters)
-      const branchCode = branchId ? 
-        branchId.slice(0, 2).toUpperCase() : 
-        'DC'; // Default code for DesiCargo
+      // Generate sequence number
+      let sequence = 1;
+      if (!lrError && latestLR && latestLR.length > 0) {
+        const lastSequence = parseInt(latestLR[0].lr_number.split('-')[1]);
+        if (!isNaN(lastSequence)) {
+          sequence = lastSequence + 1;
+        }
+      }
       
-      const lrNumber = `${branchCode}${year}${month}-${sequence}`;
+      const lrNumber = `${branchCode}${year}${month}-${sequence.toString().padStart(4, '0')}`;
       console.log('Generated LR number:', lrNumber);
       return lrNumber;
     } catch (err) {
@@ -34,6 +59,7 @@ export function useLR(branchId: string | null = null) {
   async function createLR(data: Omit<Booking, 'id' | 'created_at' | 'updated_at' | 'total_amount'>) {
     try {
       setLoading(true);
+      setError(null);
       console.log('Creating LR with data:', data);
 
       // Generate LR number if not provided
@@ -41,18 +67,34 @@ export function useLR(branchId: string | null = null) {
         data.lr_number = await generateLRNumber();
       }
 
-      // Create a mock booking
-      const mockBooking = {
-        id: Math.random().toString(36).substring(2, 15),
-        ...data,
-        branch_id: branchId || 'default-branch',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        total_amount: (data.quantity * data.freight_per_qty) + (data.loading_charges || 0) + (data.unloading_charges || 0)
-      };
+      // Calculate total amount
+      const totalAmount = (data.quantity * data.freight_per_qty) + 
+                          (data.loading_charges || 0) + 
+                          (data.unloading_charges || 0) +
+                          (data.insurance_charge || 0) +
+                          (data.packaging_charge || 0);
+
+      // Create the booking
+      const { data: newBooking, error: sbError } = await supabase
+        .from('bookings')
+        .insert({
+          ...data,
+          total_amount: totalAmount
+        })
+        .select(`
+          *,
+          sender:customers!sender_id(*),
+          receiver:customers!receiver_id(*),
+          article:articles(*),
+          from_branch_details:branches!from_branch(*),
+          to_branch_details:branches!to_branch(*)
+        `)
+        .single();
+
+      if (sbError) throw sbError;
       
-      console.log('LR created successfully:', mockBooking);
-      return mockBooking;
+      console.log('LR created successfully:', newBooking);
+      return newBooking;
     } catch (err) {
       setError(err instanceof Error ? err : new Error('Failed to create LR'));
       throw err;
@@ -64,17 +106,23 @@ export function useLR(branchId: string | null = null) {
   async function updateLRStatus(id: string, status: Booking['status']) {
     try {
       setLoading(true);
+      setError(null);
       console.log(`Updating LR ${id} status to ${status}`);
 
-      // Return a mock result
-      const mockResult = {
-        id,
-        status,
-        updated_at: new Date().toISOString()
-      };
+      const { data, error: sbError } = await supabase
+        .from('bookings')
+        .update({
+          status,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (sbError) throw sbError;
       
-      console.log('LR status updated successfully:', mockResult);
-      return mockResult;
+      console.log('LR status updated successfully:', data);
+      return data;
     } catch (err) {
       setError(err instanceof Error ? err : new Error('Failed to update LR status'));
       throw err;
@@ -86,45 +134,26 @@ export function useLR(branchId: string | null = null) {
   async function printLR(id: string) {
     try {
       setLoading(true);
+      setError(null);
       console.log(`Printing LR ${id}`);
 
-      // Return a mock result
-      const mockLR = {
-        id,
-        lr_number: `DC${new Date().toISOString().slice(2, 8).replace(/-/g, '')}-${Math.floor(1000 + Math.random() * 9000)}`,
-        sender: {
-          name: 'John Doe',
-          mobile: '9876543210'
-        },
-        receiver: {
-          name: 'Jane Smith',
-          mobile: '9876543211'
-        },
-        article: {
-          name: 'Cloth Bundle',
-          description: 'Standard cloth bundles'
-        },
-        from_branch: {
-          name: 'Mumbai HQ',
-          address: '123 Business Park, Andheri East',
-          city: 'Mumbai',
-          state: 'Maharashtra'
-        },
-        to_branch: {
-          name: 'Delhi Branch',
-          address: '456 Industrial Area, Okhla Phase 1',
-          city: 'Delhi',
-          state: 'Delhi'
-        },
-        quantity: 2,
-        uom: 'KG',
-        total_amount: 300,
-        payment_type: 'Paid',
-        created_at: new Date().toISOString()
-      };
+      const { data, error: sbError } = await supabase
+        .from('bookings')
+        .select(`
+          *,
+          sender:customers!sender_id(*),
+          receiver:customers!receiver_id(*),
+          article:articles(*),
+          from_branch_details:branches!from_branch(*),
+          to_branch_details:branches!to_branch(*)
+        `)
+        .eq('id', id)
+        .single();
+
+      if (sbError) throw sbError;
       
-      console.log('LR data retrieved successfully for printing:', mockLR);
-      return mockLR;
+      console.log('LR data retrieved successfully for printing:', data);
+      return data;
     } catch (err) {
       setError(err instanceof Error ? err : new Error('Failed to print LR'));
       throw err;
