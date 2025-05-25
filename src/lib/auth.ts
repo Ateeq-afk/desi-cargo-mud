@@ -1,4 +1,4 @@
-import { supabase } from './supabase';
+import { supabase } from './supabaseClient';
 import { User } from '@supabase/supabase-js';
 
 export async function signUp(email: string, password: string) {

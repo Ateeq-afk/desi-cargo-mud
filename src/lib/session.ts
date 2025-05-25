@@ -1,4 +1,4 @@
-import { supabase } from './supabase';
+import { supabase } from './supabaseClient';
 
 // Create a custom channel for cross-tab communication
 class CustomChannel {

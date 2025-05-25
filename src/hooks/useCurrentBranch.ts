@@ -1,13 +1,14 @@
+// src/hooks/useCurrentBranch.ts
 import { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
-import type { Branch } from '@/types';
+import { supabase } from '@/lib/supabaseClient';
+import type { Branch } from '@/types/index';
 import { useAuth } from '@/contexts/AuthContext';
 
 export function useCurrentBranch() {
   const [branch, setBranch] = useState<Branch | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
-  const { role } = useAuth();
+  const { role } = useAuth(); 
 
   useEffect(() => {
     if (role?.branchId) {

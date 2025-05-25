@@ -1,4 +1,4 @@
-import { supabase } from './supabase';
+import { supabase } from './supabaseClient';
 import type { Booking } from '@/types';
 
 export async function sendSMS(to: string, message: string) {

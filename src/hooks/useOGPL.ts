@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/supabaseClient';
 import type { OGPL, Booking } from '@/types';
 
 export function useOGPL(organizationId: string | null) {

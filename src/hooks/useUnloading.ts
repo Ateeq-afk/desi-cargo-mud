@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/supabaseClient';
 import type { OGPL } from '@/types';
 import { useNotificationSystem } from '@/hooks/useNotificationSystem';
 

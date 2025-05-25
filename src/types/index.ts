@@ -2,19 +2,15 @@
 export interface Branch {
   id: string;
   name: string;
-  code: string;
-  address: string;
   city: string;
-  state: string;
-  pincode: string;
-  phone: string;
-  email: string;
+  state?: string;
   is_head_office: boolean;
-  status: 'active' | 'inactive' | 'maintenance';
+  phone?: string;
+  email?: string;
+  status: 'active' | 'maintenance' | 'closed';
   created_at: string;
   updated_at: string;
 }
-
 // Customer types
 export interface Customer {
   id: string;
